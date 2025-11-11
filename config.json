@@ -1,0 +1,97 @@
+{
+  "opensearch": {
+    "master_host": "opensearch-master.example.com",
+    "data_nodes": [
+      "opensearch-data1.example.com",
+      "opensearch-data2.example.com"
+    ],
+    "port": 9200,
+    "dashboard_url": "http://opensearch-master.example.com:5601"
+  },
+  "postgresql": {
+    "active": {
+      "host": "postgres-active.example.com",
+      "port": 5432,
+      "username": "postgres",
+      "password": "your-password"
+    },
+    "standby": {
+      "host": "postgres-standby.example.com",
+      "port": 5432,
+      "username": "postgres",
+      "password": "your-password"
+    }
+  },
+  "kafka": {
+    "bootstrap_servers": [
+      "kafka1.example.com:9092",
+      "kafka2.example.com:9092",
+      "kafka3.example.com:9092"
+    ],
+    "zookeeper_hosts": [
+      "zk1.example.com:2181",
+      "zk2.example.com:2181",
+      "zk3.example.com:2181"
+    ]
+  },
+  "logstash": {
+    "filter_servers": [
+      {
+        "host": "logstash-filter1.example.com",
+        "port": 22,
+        "username": "logstash",
+        "ssh_key_path": "/home/agent/.ssh/id_rsa"
+      },
+      {
+        "host": "logstash-filter2.example.com",
+        "port": 22,
+        "username": "logstash",
+        "ssh_key_path": "/home/agent/.ssh/id_rsa"
+      },
+      {
+        "host": "logstash-filter3.example.com",
+        "port": 22,
+        "username": "logstash",
+        "ssh_key_path": "/home/agent/.ssh/id_rsa"
+      }
+    ],
+    "indexer_servers": [
+      {
+        "host": "logstash-indexer1.example.com",
+        "port": 22,
+        "username": "ingest",
+        "ssh_key_path": "/home/agent/.ssh/id_rsa"
+      },
+      {
+        "host": "logstash-indexer2.example.com",
+        "port": 22,
+        "username": "ingest",
+        "ssh_key_path": "/home/agent/.ssh/id_rsa"
+      },
+      {
+        "host": "logstash-indexer3.example.com",
+        "port": 22,
+        "username": "ingest",
+        "ssh_key_path": "/home/agent/.ssh/id_rsa"
+      }
+    ]
+  },
+  "alerts": {
+    "email_enabled": true,
+    "email_recipients": [
+      "data-team@example.com",
+      "devops@example.com"
+    ],
+    "slack_enabled": true,
+    "slack_webhook": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+    "alert_threshold_cpu": 80.0,
+    "alert_threshold_memory": 85.0,
+    "alert_threshold_disk": 90.0
+  },
+  "maintenance": {
+    "auto_delete_indices_days": 30,
+    "auto_delete_topics_days": 7,
+    "log_cleanup_interval_hours": 1,
+    "vacuum_analyze_interval_days": 1
+  }
+}

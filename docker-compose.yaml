@@ -1,0 +1,346 @@
+version: '3.8'
+
+services:
+  # OpenSearch Master Node
+  opensearch-master:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: opensearch-master
+    environment:
+      - cluster.name=data-pipeline-cluster
+      - node.name=opensearch-master
+      - node.roles=master
+      - discovery.seed_hosts=opensearch-master,opensearch-data1,opensearch-data2
+      - cluster.initial_master_nodes=opensearch-master
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch-master-data:/usr/share/opensearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - pipeline-network
+
+  # OpenSearch Data Node 1
+  opensearch-data1:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: opensearch-data1
+    environment:
+      - cluster.name=data-pipeline-cluster
+      - node.name=opensearch-data1
+      - node.roles=data,ingest
+      - discovery.seed_hosts=opensearch-master,opensearch-data1,opensearch-data2
+      - cluster.initial_master_nodes=opensearch-master
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch-data1-data:/usr/share/opensearch/data
+    networks:
+      - pipeline-network
+
+  # OpenSearch Data Node 2
+  opensearch-data2:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: opensearch-data2
+    environment:
+      - cluster.name=data-pipeline-cluster
+      - node.name=opensearch-data2
+      - node.roles=data,ingest
+      - discovery.seed_hosts=opensearch-master,opensearch-data1,opensearch-data2
+      - cluster.initial_master_nodes=opensearch-master
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch-data2-data:/usr/share/opensearch/data
+    networks:
+      - pipeline-network
+
+  # OpenSearch Dashboard
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: opensearch-dashboards
+    ports:
+      - 5601:5601
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch-master:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    networks:
+      - pipeline-network
+
+  # PostgreSQL Active
+  postgres-active:
+    image: postgres:15
+    container_name: postgres-active
+    environment:
+      - POSTGRES_DB=pipeline_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+      - POSTGRES_REPLICATION_MODE=master
+      - POSTGRES_REPLICATION_USER=replicator
+      - POSTGRES_REPLICATION_PASSWORD=replicator123
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres-active-data:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    networks:
+      - pipeline-network
+
+  # PostgreSQL Standby
+  postgres-standby:
+    image: postgres:15
+    container_name: postgres-standby
+    environment:
+      - POSTGRES_DB=pipeline_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+      - POSTGRES_REPLICATION_MODE=slave
+      - POSTGRES_MASTER_HOST=postgres-active
+      - POSTGRES_REPLICATION_USER=replicator
+      - POSTGRES_REPLICATION_PASSWORD=replicator123
+    ports:
+      - 5433:5432
+    volumes:
+      - postgres-standby-data:/var/lib/postgresql/data
+    depends_on:
+      - postgres-active
+    networks:
+      - pipeline-network
+
+  # Kafka 1 (with embedded Kraft)
+  kafka1:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka1
+    ports:
+      - 9092:9092
+      - 19092:19092
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka1:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:29093,2@kafka2:29093,3@kafka3:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka1:29092,CONTROLLER://kafka1:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    volumes:
+      - kafka1-data:/var/lib/kafka/data
+    networks:
+      - pipeline-network
+
+  # Kafka 2
+  kafka2:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka2
+    ports:
+      - 9093:9093
+      - 19093:19093
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka2:29092,PLAINTEXT_HOST://localhost:9093'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:29093,2@kafka2:29093,3@kafka3:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka2:29092,CONTROLLER://kafka2:29093,PLAINTEXT_HOST://0.0.0.0:9093'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    volumes:
+      - kafka2-data:/var/lib/kafka/data
+    networks:
+      - pipeline-network
+
+  # Kafka 3
+  kafka3:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka3
+    ports:
+      - 9094:9094
+      - 19094:19094
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka3:29092,PLAINTEXT_HOST://localhost:9094'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:29093,2@kafka2:29093,3@kafka3:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka3:29092,CONTROLLER://kafka3:29093,PLAINTEXT_HOST://0.0.0.0:9094'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    volumes:
+      - kafka3-data:/var/lib/kafka/data
+    networks:
+      - pipeline-network
+
+  # Logstash Filter 1
+  logstash-filter1:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash-filter1
+    volumes:
+      - ./logstash/filter/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/filter/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    ports:
+      - 5044:5044
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    networks:
+      - pipeline-network
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+
+  # Logstash Filter 2
+  logstash-filter2:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash-filter2
+    volumes:
+      - ./logstash/filter/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/filter/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    ports:
+      - 5045:5044
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    networks:
+      - pipeline-network
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+
+  # Logstash Filter 3
+  logstash-filter3:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash-filter3
+    volumes:
+      - ./logstash/filter/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/filter/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    ports:
+      - 5046:5044
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    networks:
+      - pipeline-network
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+
+  # Logstash Indexer 1
+  logstash-indexer1:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash-indexer1
+    volumes:
+      - ./logstash/indexer/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/indexer/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    networks:
+      - pipeline-network
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+      - opensearch-master
+
+  # Logstash Indexer 2
+  logstash-indexer2:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash-indexer2
+    volumes:
+      - ./logstash/indexer/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/indexer/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    networks:
+      - pipeline-network
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+      - opensearch-master
+
+  # Logstash Indexer 3
+  logstash-indexer3:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash-indexer3
+    volumes:
+      - ./logstash/indexer/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/indexer/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    networks:
+      - pipeline-network
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+      - opensearch-master
+
+  # Pipeline Agent (자동화 에이전트)
+  pipeline-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: pipeline-agent
+    volumes:
+      - ./config.json:/etc/pipeline_agent/config.json
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - pipeline-network
+    depends_on:
+      - opensearch-master
+      - postgres-active
+      - kafka1
+
+volumes:
+  opensearch-master-data:
+  opensearch-data1-data:
+  opensearch-data2-data:
+  postgres-active-data:
+  postgres-standby-data:
+  kafka1-data:
+  kafka2-data:
+  kafka3-data:
+
+networks:
+  pipeline-network:
+    driver: bridge
