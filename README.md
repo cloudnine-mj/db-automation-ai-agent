@@ -1,10 +1,10 @@
 # 데이터 파이프라인 자동화 AI Agent
 
-## 📋 프로젝트 개요
+## 프로젝트 개요
 
 ELK 스택 기반 데이터 파이프라인의 운영 자동화를 위한 지능형 AI Agent 시스템입니다. OpenSearch, PostgreSQL, Kafka, Logstash 등의 컴포넌트를 모니터링하고 자동으로 관리합니다.
 
-## 🚀 주요 기능
+## 주요 기능
 
 ### 1. 실시간 모니터링
 
@@ -34,7 +34,7 @@ ELK 스택 기반 데이터 파이프라인의 운영 자동화를 위한 지능
 - Slack 웹훅 연동
 - 임계치 기반 알림 (CPU, Memory, Disk)
 
-## 🏗️ 아키텍처
+## 아키텍처
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -68,9 +68,9 @@ ELK 스택 기반 데이터 파이프라인의 운영 자동화를 위한 지능
 └────────────────┘                  └────────────────┘
 ```
 
-## 📦 설치 방법
+## 설치 방법
 
-### 1. 요구사항
+### 1. 설치 요구 사항
 
 - Python 3.8+
 - Docker & Docker Compose (개발환경용)
@@ -105,7 +105,7 @@ sudo systemctl enable pipeline-agent
 sudo systemctl start pipeline-agent
 ```
 
-## 🐳 Docker로 개발환경 구축
+## Docker로 개발환경 구축
 
 ```bash
 # 전체 스택 실행
@@ -121,7 +121,7 @@ docker-compose logs -f pipeline-agent
 docker-compose down
 ```
 
-## 🛠️ CLI 유틸리티 사용법
+## CLI 유틸리티 사용
 
 ### 헬스 체크
 
@@ -163,14 +163,14 @@ python automation_utilities.py scale logstash down --count 1
 python automation_utilities.py failover postgresql postgres-standby.example.com
 ```
 
-## 📊 모니터링 대시보드
+## 모니터링 대시보드
 
-OpenSearch Dashboard에 접속하여 시각화된 메트릭을 확인할 수 있습니다:
+OpenSearch Dashboard에 접속하여 시각화된 메트릭을 확인할 수 있습니다
 
 - URL: http://localhost:5601
 - 기본 인덱스 패턴: `logstash-*`
 
-## 🔧 주요 설정
+## 주요 설정
 
 ### config.json 구조
 
@@ -201,7 +201,7 @@ OpenSearch Dashboard에 접속하여 시각화된 메트릭을 확인할 수 있
 ```
 
 
-## 📈 AI 모델 학습
+## AI 모델 학습
 
 ### 이상 탐지 모델 학습
 
@@ -226,7 +226,7 @@ historical_data = pd.read_csv('performance_history.csv')
 predictor.train(historical_data)
 ```
 
-## 🔍 트러블슈팅
+## 트러블슈팅
 
 ### 1. Logstash CPU 사용률 높음
 
@@ -268,7 +268,7 @@ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --all-grou
 kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group my-group --reset-offsets --to-latest --execute --all-topics
 ```
 
-## 📝 로그 위치
+## 로그 위치
 
 - Agent 로그: `/var/log/data_pipeline_agent.log`
 - OpenSearch: `/var/log/opensearch/`
